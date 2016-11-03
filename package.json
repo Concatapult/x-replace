@@ -1,0 +1,23 @@
+{
+  "name": "x-replace",
+  "version": "0.1.0",
+  "description": "Tag-aware string templating",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Concatapult/x-replace.git"
+  },
+  "keywords": [
+    "html",
+    "templates"
+  ],
+  "author": "Gilbert",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Concatapult/x-replace/issues"
+  },
+  "homepage": "https://github.com/Concatapult/x-replace#readme"
+}
