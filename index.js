@@ -1,5 +1,13 @@
 
-module.exports = function (str, values) {
+module.exports = function (ignoreTagNamesRegex, str, values) {
+
+  if ( values === undefined ) {
+    // Only two arguments were given; shift them to the right
+    values = str
+    str = ignoreTagNamesRegex
+    ignoreTagNamesRegex = /^template$/
+  }
+
   var pieces = []
   var lastCut = 0
 
@@ -53,7 +61,7 @@ module.exports = function (str, values) {
     }
     else if ( str[x] === '<' ) {
       var tagNameEnd = x
-      while ( str[tagNameEnd+1].match(/[a-zA-Z0-9]/) ) { tagNameEnd++ }
+      while ( str[tagNameEnd+1].match(/[a-zA-Z0-9\-]/) ) { tagNameEnd++ }
       if ( tagNameEnd === x ) {
         // Not a tag name after all. Nothing to see here; move along
         continue
@@ -61,7 +69,7 @@ module.exports = function (str, values) {
 
       var tagName = str.substring(x+1, tagNameEnd+1)
 
-      if ( ! tagName.match(exports.ignoreTagNamesRegex) ) {
+      if ( ! tagName.match(ignoreTagNamesRegex) ) {
         // Not an ignored tag name. Move along!
         continue
       }
@@ -114,14 +122,3 @@ module.exports = function (str, values) {
 
   return pieces.join('')
 }
-
-// Expose directly...
-exports.ignoreTagNamesRegex = null
-
-// ...and also via a handly helper!
-exports.setIgnoredTagNames = function (tagNames) {
-  exports.ignoreTagNamesRegex = new RegExp('^(' + tagNames.join('|') + ')$')
-}
-
-// Initialize
-exports.setIgnoredTagNames(['template'])

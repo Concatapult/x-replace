@@ -55,3 +55,18 @@ o("It ignores template tags within other tags", function () {
     </p>
 `)
 })
+
+
+o("It can ignore other tags", function () {
+  var result = replace(/^x\-/, `
+    <p>One: {{ x }}</p>
+    <template>Two: {{ x }}</template>
+    <x-loop>Three: {{ x }}</x-loop>
+`, { x: 10 })
+
+  o(result).equals(`
+    <p>One: 10</p>
+    <template>Two: 10</template>
+    <x-loop>Three: {{ x }}</x-loop>
+`)
+})
