@@ -1,5 +1,5 @@
 
-module.exports = function (ignoreTagNamesRegex, str, values) {
+module.exports = function xReplace (ignoreTagNamesRegex, str, values) {
 
   if ( values === undefined ) {
     // Only two arguments were given; shift them to the right
@@ -22,6 +22,7 @@ module.exports = function (ignoreTagNamesRegex, str, values) {
       }
 
       pieces.push( str.substring(lastCut, x) )
+      if ( str[x-1] === '=' && values.__quote__ ) pieces.push("'")
       lastCut = x + 1 + 2 // extra two for skipping {{
 
       var key = ''
@@ -41,10 +42,17 @@ module.exports = function (ignoreTagNamesRegex, str, values) {
         else if ( c === '}' ) {
           // We've reached the end
           if ( str[y+1] !== '}' ) {
-            console.log("hmm", str[y+1])
             throw new Error('Invalid syntax (missing closing curly bracket)')
           }
-          pieces.push( currentSource[key] )
+
+          var val = currentSource[key]
+          pieces.push(
+            (Array.isArray(val) || Object.prototype.toString.call(val) === '[object Object]')
+              ? JSON.stringify(val)
+              : val
+          )
+
+          if ( str[x-1] === '=' && values.__quote__ ) pieces.push("'")
           lastCut = y + 2 // extra two for skipping }}
           break
         }
@@ -62,29 +70,49 @@ module.exports = function (ignoreTagNamesRegex, str, values) {
     else if ( str[x] === '<' ) {
       var tagNameEnd = x
       while ( str[tagNameEnd+1].match(/[a-zA-Z0-9\-]/) ) { tagNameEnd++ }
+
       if ( tagNameEnd === x ) {
-        // Not a tag name after all. Nothing to see here; move along
+        // Not a tag name after all. Nothing to see here; move along!
         continue
       }
+      tagNameEnd++
 
-      var tagName = str.substring(x+1, tagNameEnd+1)
+      var tagName = str.substring(x+1, tagNameEnd)
+      pieces.push( str.substring(lastCut, tagNameEnd) )
+      lastCut = tagNameEnd
 
+      //
+      // HTML attribute-aware string replacing;
+      // Insert quotes when appropriate.
+      //
+      // First, find the end of the opening tag
+      var openTagEnd = tagNameEnd
+      while ( str[openTagEnd] !== '>' ) { openTagEnd++ }
+      openTagEnd++
+
+
+      // Next, x-replace string with quote flag
+      var attrString = str.substring(tagNameEnd, openTagEnd)
+
+      pieces.push(
+        xReplace(ignoreTagNamesRegex, attrString, Object.assign({ __quote__: true }, values))
+      )
+      lastCut = openTagEnd
+
+      //
+      // Attributes are done; only continue if we need to.
+      //
       if ( ! tagName.match(ignoreTagNamesRegex) ) {
-        // Not an ignored tag name. Move along!
+        // Not an ignored tag name. Parse tag body as normal.
+        x = openTagEnd - 1 // subtract one to accommodate for the `for` loop's x++
         continue
       }
 
       //
       // At this point we've encountered a tag to ignore.
+      // Skip to its closing tag.
       //
-      // First, find the end of the opening tag
-      var openTagEnd = tagNameEnd+1
-      while ( str[openTagEnd] !== '>' ) { openTagEnd++ }
-
-      //
-      // Next, find the closing tag
-      //
-      var closeTagEnd = openTagEnd + 1
+      var closeTagEnd = openTagEnd
       searchClosingTag:
       while ( closeTagEnd < str.length ) {
 
@@ -100,6 +128,11 @@ module.exports = function (ignoreTagNamesRegex, str, values) {
           while ( closeTagEnd < str.length ) {
             if ( str[closeTagEnd] === '>' ) {
               closeTagEnd++
+              if ( closeTagEnd === str.length ) {
+                // We've reached the end of the string, but that's ok.
+                // Change it up to skip error handling condition.
+                closeTagEnd++
+              }
               break searchClosingTag
             }
             closeTagEnd++

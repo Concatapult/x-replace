@@ -14,6 +14,12 @@ o("It replaces with object properties", function () {
 })
 
 
+o("It conveniently inserts quotes when interpolating a tag attribute value", function () {
+  var result = replace('<p a={{x}} b={{y}} c="{{z}}"></p>', { x: 10, y: '20', z: '30' })
+  o(result).equals(`<p a='10' b='20' c="30"></p>`)
+})
+
+
 o("It ignores leading and trailing whitespace", function () {
   var result = replace('Hello, {{  name  }}!', { name: 'Alice' })
   o(result).equals('Hello, Alice!')
@@ -69,4 +75,29 @@ o("It can ignore other tags", function () {
     <template>Two: 10</template>
     <x-loop>Three: {{ x }}</x-loop>
 `)
+})
+
+
+o("It replaces attributes of ignored tags", function () {
+  var result = replace(/^(x\-|template)/, `<p>{{title}}</p><x-loop data='{{ data }}'>{{ name }}</x-loop>`, {
+    title: "Hi!",
+    data: ['Alice', 'Bob'],
+    name: 'Not used',
+  })
+
+  o(result).equals(`<p>Hi!</p><x-loop data='["Alice","Bob"]'>{{ name }}</x-loop>`)
+})
+
+
+o("It interpolates objects", function () {
+  var result = replace(`<p>Me: {{ obj }}</p>`, { obj: { x: 10 } })
+
+  o(result).equals(`<p>Me: {"x":10}</p>`)
+})
+
+
+o("It replaces tag attribute names", function () {
+  var result = replace(`<div data-{{flag}}="true"></div>`, { flag: 'x' })
+
+  o(result).equals(`<div data-x="true"></div>`)
 })
