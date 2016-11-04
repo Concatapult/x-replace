@@ -14,9 +14,9 @@ o("It replaces with object properties", function () {
 })
 
 
-o("It conveniently inserts quotes when interpolating a tag attribute value", function () {
-  var result = replace('<p a={{x}} b={{y}} c="{{z}}"></p>', { x: 10, y: '20', z: '30' })
-  o(result).equals(`<p a='10' b='20' c="30"></p>`)
+o("It inserts and fixes quotes when interpolating a tag attribute value", function () {
+  var result = replace('<p a={{x}} b={{y}} c="{{z}}" d="0"></p>', { x: 10, y: '20', z: '30' })
+  o(result).equals(`<p a='10' b='20' c='30' d="0"></p>`)
 })
 
 
@@ -100,4 +100,26 @@ o("It replaces tag attribute names", function () {
   var result = replace(`<div data-{{flag}}="true"></div>`, { flag: 'x' })
 
   o(result).equals(`<div data-x="true"></div>`)
+})
+
+
+o.spec("Encoding", function () {
+
+  o("It encodes html characters by default", function () {
+    var result = replace(`<p>{{ script }}</p>`, { script: `<script>alert('hi')</script>` })
+
+    o(result).equals(`<p>&lt;script&gt;alert('hi')&lt;/script&gt;</p>`)
+  })
+
+  o("It encodes single quotes within tag attributes", function () {
+    var result = replace(`<p id="{{ x }}"></p>`, { x: "John's <Gospel>" })
+
+    o(result).equals(`<p id='John&#39;s <Gospel>'></p>`)
+  })
+
+  o("It can replace with raw content", function () {
+    var result = replace(`<p>{{= script }}</p>`, { script: `<script>alert('hi')</script>` })
+
+    o(result).equals(`<p><script>alert('hi')</script></p>`)
+  })
 })

@@ -21,13 +21,37 @@ module.exports = function xReplace (ignoreTagNamesRegex, str, values) {
         continue
       }
 
-      pieces.push( str.substring(lastCut, x) )
-      if ( str[x-1] === '=' && values.__quote__ ) pieces.push("'")
+      //
+      // Normalize quotes
+      //
+      var cutPoint = x
+      var shouldInsertQuote = false
+      if ( values.__inHtmlAttr__ ) {
+        if ( str[x-1] === '=' ) {
+          // No quote; insert our own
+          shouldInsertQuote = true
+        }
+        else if ( str[x-2] === '=' && str[x-1] === '"' ) {
+          // Double quote; cut it out and insert our own
+          cutPoint--
+          shouldInsertQuote = true
+        }
+      }
+
+      pieces.push( str.substring(lastCut, cutPoint) )
+      if ( shouldInsertQuote ) pieces.push("'")
       lastCut = x + 1 + 2 // extra two for skipping {{
 
       var key = ''
+      var shouldEscape = true
       var currentSource = values
       var y = x + 2 // extra two for skipping {{
+
+      if ( str[x+2] === '=' ) {
+        shouldEscape = false
+        lastCut++ // skip the =
+        y++       // skip the =
+      }
 
       // Skip leading whitespace
       while (str[y] === ' ' || str[y] === '\n') { y++ }
@@ -46,14 +70,27 @@ module.exports = function xReplace (ignoreTagNamesRegex, str, values) {
           }
 
           var val = currentSource[key]
+
+          if ( Array.isArray(val) || Object.prototype.toString.call(val) === '[object Object]' ) {
+            val = JSON.stringify(val)
+          }
+          else {
+            val = String(val || '')
+          }
+
           pieces.push(
-            (Array.isArray(val) || Object.prototype.toString.call(val) === '[object Object]')
-              ? JSON.stringify(val)
-              : val
+            values.__inHtmlAttr__
+              ? encodeHtmlAttr(val)
+              : ( shouldEscape ? escapeHTML(val) : val )
           )
 
-          if ( str[x-1] === '=' && values.__quote__ ) pieces.push("'")
+          if ( shouldInsertQuote ) pieces.push("'")
           lastCut = y + 2 // extra two for skipping }}
+
+          if ( shouldInsertQuote && str[lastCut] === '"' ) {
+            lastCut++ // Skip doublequote
+          }
+
           break
         }
         else if ( c === '.' ) {
@@ -95,7 +132,7 @@ module.exports = function xReplace (ignoreTagNamesRegex, str, values) {
       var attrString = str.substring(tagNameEnd, openTagEnd)
 
       pieces.push(
-        xReplace(ignoreTagNamesRegex, attrString, Object.assign({ __quote__: true }, values))
+        xReplace(ignoreTagNamesRegex, attrString, Object.assign({ __inHtmlAttr__: true }, values))
       )
       lastCut = openTagEnd
 
@@ -154,4 +191,26 @@ module.exports = function xReplace (ignoreTagNamesRegex, str, values) {
   }
 
   return pieces.join('')
+}
+
+exports.encodeHtmlAttr = encodeHtmlAttr
+exports.decodeHtmlAttr = decodeHtmlAttr
+
+var ESC_MAP = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+};
+
+function encodeHtmlAttr(json) {
+  return json.replace(/'/g, '&#39;')
+}
+function decodeHtmlAttr(json) {
+  return json.replace(/&#39;/g, "'")
+}
+
+function escapeHTML(s) {
+  return s.replace(/[&<>]/g, function(c) {
+    return ESC_MAP[c];
+  });
 }
